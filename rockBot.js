@@ -1,6 +1,8 @@
 class Bot {
     makeMove(gamestate) {
-        return 'R';
+        const movesArray = ['R', 'P', 'S', 'W', 'D'];
+        return movesArray[Math.floor(Math.random() * 3)];
+        //return 'R';
     }
 }
 
