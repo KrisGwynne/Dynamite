@@ -1,119 +1,49 @@
+var GameMech = require('./gameMech.js');
+var CurrentState = require('./currentState.js');
+
+
 class Bot {
     makeMove(gamestate) {
 
-        //Want to add in that if the opponent seems to play randomly we can counter that
-        //If so then all opponent moves will approx equal
+        const score = GameMech.getScore(gamestate);
 
         const movesArray = ['R', 'P', 'S', 'W', 'D'];
+        const winningScore = 1000;
         let move;
 
-        const p1Moves = this.countmoves(gamestate, 'p1');
-        const p2Moves = this.countmoves(gamestate, 'p2');
+        const leastRemaining = winningScore - Math.max(score.p1, score.p2);
+
+
+        const p1Moves = CurrentState.countmoves(gamestate, 'p1');
+        const p2Moves = CurrentState.countmoves(gamestate, 'p2');
 
         const dynamiteDiff = p2Moves.dynamite - p1Moves.dynamite; //Number between -100 and 100
-        const totalMoves = p1Moves.totalMoves;
 
-        const isP2Random = this.checkRandom(p2Moves);
+        let oppDynRatio = 0;
+        if (p2Moves.dynamite < 100) {
+            oppDynRatio = (100-p2Moves.dynamite)/leastRemaining;
+        }
 
-        if (p1Moves.lastMove === 'D') {
-            move = 'W';
-        } else if (dynamiteDiff >= 0 && p2Moves.lastMove !== 'D') {
-            move = 'D';
-        } else if (1000 - p1Moves.totalMoves < 100 && p1Moves.dynamite < 100) {
-            move = 'D';
-        } else if (isP2Random) {
-            move = movesArray[Math.floor(Math.random() * 3)];
-        } else {
-            switch (p2Moves.lastMove) {
-                case 'R':
-                    move = 'P';
-                    break;
-                case 'P':
-                    move = 'S';
-                    break;
-                case 'S':
-                    move = 'R';
-                    break;
-                default:
-                    move = movesArray[Math.floor(Math.random() * 3)];
-                    break;
+        if (oppDynRatio > 0.75 && CurrentState.checkRandom(p2Moves)) {               //If the opponent has a high amount of dynmite left, but not many moves use a water
+            return 'W';
+        }
+        if (dynamiteDiff >= 0 && p2Moves.lastMove !== 'D' && p1Moves.dynamite < 100) {             //If the opponent has used more dynamite than us we should use ours, but not straight after
+            if (Math.random() > 0.85) {
+                //console.log(`using dyn ${p1Moves.totalMoves}`);
+                return 'D';
             }
-        }
-        return move;
-    }
-
-    countmoves(gamestate, player) {
-
-        let moves = {
-            rock: 0,
-            paper: 0,
-            scissors: 0,
-            dynamite: 0,
-            water: 0,
-            totalMoves: 0,
-            lastMove: ''
-        };
-
-        gamestate.rounds.forEach(move => {
-
-            switch (move[player]) {
-                case 'R':
-                    moves.rock++;
-                    moves.totalMoves++;
-                    moves.lastMove = 'R';
-                    break;
-                case 'P':
-                    moves.paper++;
-                    moves.totalMoves++;
-                    moves.lastMove = 'P';
-                    break;
-                case 'S':
-                    moves.scissors++;
-                    moves.totalMoves++;
-                    moves.lastMove = 'S';
-                    break;
-                case 'D':
-                    moves.dynamite++;
-                    moves.totalMoves++;
-                    moves.lastMove = 'D';
-                    break;
-                case 'W':
-                    moves.water++;
-                    moves.totalMoves++;
-                    moves.lastMove = 'W';
-                    break;
-                default:
-                    console.log(move[player]);
-                    break;
+            
+        } 
+        if (leastRemaining < 100 && p1Moves.dynamite < 100) {      //If we are running out of time to use dynamite we should use it, but need to improve
+            if (Math.random() > 0.8) {
+                //console.log(`using dyn ${p1Moves.totalMoves}`);
+                return 'D';
             }
-        });
-
-        return moves
-    }
-
-    checkRandom(player) {
-        const average = (player.totalMoves - player.dynamite - player.water) / 3;
-        const diff = (player.totalMoves - player.dynamite - player.water) * 0.1 //Within 10%
-        const min = average - diff;
-        const max = average + diff;
-
-        if (
-            this.between(player.rock, min, max) &&
-            this.between(player.paper, min, max) &&
-            this.between(player.scissors, min, max)
-            ) {
-            return true
-        } else {
-            return false
-        }
-    }
-
-    between(x, min, max) {
-        if (x > min && x < max) {
-            return true
-        } else {
-            return false
-        }
+        }  
+        if (CurrentState.checkRandom(p2Moves)) {
+            return CurrentState.againstOppLowestMove(p2Moves, movesArray);          //Plays what would beat the opponents least used move out of rps
+        } 
+        return GameMech.whatBeats(p2Moves.lastMove, movesArray);                    //Play what would beat the opponents last move
     }
 }
 
